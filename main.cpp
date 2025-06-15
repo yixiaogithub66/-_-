@@ -1,121 +1,175 @@
-/*
-Peg Solitaire 孔明棋（使用 EasyX 图形库开发）
-作者：yixiaogithub66
-*/
+#include <graphics.h> // EasyX
+#include <windows.h>  // For HWND, MessageBox etc.
+#include <cstdio>     // For _stprintf_s
+#include "Payment.h"  // Our Payment class
+// #include "Game.h"  // Assuming you have your Game class for Peg Solitaire
 
-#include <graphics.h>
-#include <conio.h>
-#include <string>
-#include "board.h"
-#include "game.h"
-#include "setting.h"
-#include "payment.h"
-#include "save_load.h"  // 新增头文件
+// Define application states
+enum class AppState {
+    MAIN_MENU,
+    IN_GAME,
+    RECHARGE_CENTER,
+    SETTINGS,
+    EXITING
+};
 
-enum State { MENU, BOARD_SELECT, GAME, SETTINGS, PAYMENT, SAVE_LOAD, EXIT };  // 添加SAVE_LOAD状态
+// Global or accessible application state
+AppState currentAppState = AppState::MAIN_MENU;
+HWND g_hwnd = NULL; // Global window handle
 
-void drawMainMenu(int balance);
-State mainMenu(int balance);
+// --- Main Menu Button Definitions (Example) ---
+const int MM_BTN_START_GAME_X1 = 250, MM_BTN_START_GAME_Y1 = 200;
+const int MM_BTN_RECHARGE_X1 = 250, MM_BTN_RECHARGE_Y1 = 270;
+const int MM_BTN_SETTINGS_X1 = 250, MM_BTN_SETTINGS_Y1 = 340;
+const int MM_BTN_EXIT_X1 = 250, MM_BTN_EXIT_Y1 = 410;
+const int MM_BTN_WIDTH = 300, MM_BTN_HEIGHT = 50;
+const int MM_BTN_CORNER_RADIUS = 10;
+
+// Re-use or adapt the styled button drawing function
+void drawStyledButtonMain(int x1, int y1, int x2, int y2, const TCHAR* text, COLORREF bgColor, COLORREF textColor, int cornerRadius, bool isHovered = false) {
+    COLORREF hoverBgColor = RGB(min(255, GetRValue(bgColor) + 20), min(255, GetGValue(bgColor) + 20), min(255, GetBValue(bgColor) + 20));
+    COLORREF currentBgColor = isHovered ? hoverBgColor : bgColor;
+    COLORREF currentLineColor = isHovered ? RGB(30, 30, 50) : RGB(80, 80, 100);
+    setlinestyle(PS_SOLID, isHovered ? 3 : 2); setlinecolor(currentLineColor); setfillcolor(currentBgColor);
+    fillroundrect(x1, y1, x2, y2, cornerRadius, cornerRadius);
+    settextcolor(textColor); setbkmode(TRANSPARENT);
+    LOGFONT f; gettextstyle(&f); f.lfHeight = 24; _tcscpy_s(f.lfFaceName, LF_FACESIZE, _T("微软雅黑")); f.lfQuality = ANTIALIASED_QUALITY; settextstyle(&f);
+    int tw = textwidth(text), th = textheight(text);
+    outtextxy(x1 + (x2 - x1 - tw) / 2, y1 + (y2 - y1 - th) / 2, text);
+}
+
+
+void drawMainMenu(POINT mousePos) {
+    setbkcolor(RGB(210, 220, 230)); // Light blue-grey background
+    cleardevice();
+
+    LOGFONT titleFont; gettextstyle(&titleFont); titleFont.lfHeight = 50;
+    _tcscpy_s(titleFont.lfFaceName, LF_FACESIZE, _T("Segoe Script")); // A bit playful
+    titleFont.lfQuality = ANTIALIASED_QUALITY; settextstyle(&titleFont);
+    settextcolor(RGB(50, 70, 90));
+    outtextxy((800 - textwidth(_T("孔明棋大挑战"))) / 2, 80, _T("孔明棋大挑战"));
+
+    // Draw buttons
+    bool hoverStart = mousePos.x >= MM_BTN_START_GAME_X1 && mousePos.x <= MM_BTN_START_GAME_X1 + MM_BTN_WIDTH && mousePos.y >= MM_BTN_START_GAME_Y1 && mousePos.y <= MM_BTN_START_GAME_Y1 + MM_BTN_HEIGHT;
+    drawStyledButtonMain(MM_BTN_START_GAME_X1, MM_BTN_START_GAME_Y1, MM_BTN_START_GAME_X1 + MM_BTN_WIDTH, MM_BTN_START_GAME_Y1 + MM_BTN_HEIGHT, _T("开始游戏"), RGB(100, 180, 100), WHITE, MM_BTN_CORNER_RADIUS, hoverStart);
+
+    bool hoverRecharge = mousePos.x >= MM_BTN_RECHARGE_X1 && mousePos.x <= MM_BTN_RECHARGE_X1 + MM_BTN_WIDTH && mousePos.y >= MM_BTN_RECHARGE_Y1 && mousePos.y <= MM_BTN_RECHARGE_Y1 + MM_BTN_HEIGHT;
+    drawStyledButtonMain(MM_BTN_RECHARGE_X1, MM_BTN_RECHARGE_Y1, MM_BTN_RECHARGE_X1 + MM_BTN_WIDTH, MM_BTN_RECHARGE_Y1 + MM_BTN_HEIGHT, _T("充值中心"), RGB(100, 150, 200), WHITE, MM_BTN_CORNER_RADIUS, hoverRecharge);
+
+    bool hoverSettings = mousePos.x >= MM_BTN_SETTINGS_X1 && mousePos.x <= MM_BTN_SETTINGS_X1 + MM_BTN_WIDTH && mousePos.y >= MM_BTN_SETTINGS_Y1 && mousePos.y <= MM_BTN_SETTINGS_Y1 + MM_BTN_HEIGHT;
+    drawStyledButtonMain(MM_BTN_SETTINGS_X1, MM_BTN_SETTINGS_Y1, MM_BTN_SETTINGS_X1 + MM_BTN_WIDTH, MM_BTN_SETTINGS_Y1 + MM_BTN_HEIGHT, _T("游戏设置"), RGB(150, 150, 150), WHITE, MM_BTN_CORNER_RADIUS, hoverSettings);
+
+    bool hoverExit = mousePos.x >= MM_BTN_EXIT_X1 && mousePos.x <= MM_BTN_EXIT_X1 + MM_BTN_WIDTH && mousePos.y >= MM_BTN_EXIT_Y1 && mousePos.y <= MM_BTN_EXIT_Y1 + MM_BTN_HEIGHT;
+    drawStyledButtonMain(MM_BTN_EXIT_X1, MM_BTN_EXIT_Y1, MM_BTN_EXIT_X1 + MM_BTN_WIDTH, MM_BTN_EXIT_Y1 + MM_BTN_HEIGHT, _T("退出游戏"), RGB(200, 100, 100), WHITE, MM_BTN_CORNER_RADIUS, hoverExit);
+
+    LOGFONT footerFont; gettextstyle(&footerFont); footerFont.lfHeight = 16; _tcscpy_s(footerFont.lfFaceName, LF_FACESIZE, _T("Arial")); settextstyle(&footerFont);
+    settextcolor(RGB(100, 100, 100));
+    outtextxy(10, 570, _T("同济大学 高级程序设计 yixiaogithub66/-_-"));
+}
+
+void handleMainMenuInput(ExMessage& msg) {
+    if (msg.message == WM_LBUTTONDOWN) {
+        if (msg.x >= MM_BTN_START_GAME_X1 && msg.x <= MM_BTN_START_GAME_X1 + MM_BTN_WIDTH && msg.y >= MM_BTN_START_GAME_Y1 && msg.y <= MM_BTN_START_GAME_Y1 + MM_BTN_HEIGHT) {
+            // currentAppState = AppState::IN_GAME; // Placeholder for starting game
+            MessageBox(g_hwnd, _T("开始游戏（功能待实现）"), _T("提示"), MB_OK);
+        }
+        else if (msg.x >= MM_BTN_RECHARGE_X1 && msg.x <= MM_BTN_RECHARGE_X1 + MM_BTN_WIDTH && msg.y >= MM_BTN_RECHARGE_Y1 && msg.y <= MM_BTN_RECHARGE_Y1 + MM_BTN_HEIGHT) {
+            currentAppState = AppState::RECHARGE_CENTER;
+        }
+        else if (msg.x >= MM_BTN_SETTINGS_X1 && msg.x <= MM_BTN_SETTINGS_X1 + MM_BTN_WIDTH && msg.y >= MM_BTN_SETTINGS_Y1 && msg.y <= MM_BTN_SETTINGS_Y1 + MM_BTN_HEIGHT) {
+            // currentAppState = AppState::SETTINGS; // Placeholder for settings
+            MessageBox(g_hwnd, _T("游戏设置（功能待实现）"), _T("提示"), MB_OK);
+        }
+        else if (msg.x >= MM_BTN_EXIT_X1 && msg.x <= MM_BTN_EXIT_X1 + MM_BTN_WIDTH && msg.y >= MM_BTN_EXIT_Y1 && msg.y <= MM_BTN_EXIT_Y1 + MM_BTN_HEIGHT) {
+            currentAppState = AppState::EXITING;
+        }
+    }
+}
+
 
 int main() {
-    initgraph(800, 650);
-    setbkcolor(WHITE);
-    cleardevice();
-
-    int balance = 0;
-    Setting setting;
-    BoardType boardType = CROSS;
-
-    State state = MENU;
-    while (state != EXIT) {
-        switch (state) {
-        case MENU:
-            state = mainMenu(balance);
-            break;
-        case BOARD_SELECT: {
-            boardType = boardMenu();
-            state = GAME;
-            break;
-        }
-        case GAME: {
-            Board board(boardType);
-            Game(board, setting).run();
-            state = MENU;
-            break;
-        }
-        case SETTINGS:
-            setting.menu();
-            state = MENU;
-            break;
-        case PAYMENT:
-            balance = paymentMenu(balance);
-            state = MENU;
-            break;
-        case SAVE_LOAD:  // 处理存档
-            BoardType oldType = boardType;  // 保存原始类型
-            boardType = saveLoadMenu(boardType);
-            if (boardType != oldType) {
-                // 类型变更，可能是加载了存档
-                // 这里可以添加日志或提示
-            }
-            state = MENU;
-            break;
-        }
+    // Initialize graphics window
+    g_hwnd = initgraph(800, 600, EW_SHOWCONSOLE); // Show console for debug messages
+    if (g_hwnd == NULL) {
+        MessageBox(NULL, _T("图形初始化失败！"), _T("错误"), MB_OK | MB_ICONERROR);
+        return -1;
     }
+    SetWindowText(g_hwnd, _T("孔明棋与充值中心 - yixiaogithub66"));
+
+    Payment paymentModule; // Create an instance of our Payment module
+    // Game pegSolitaireGame; // Assuming you have a Game class instance
+
+    ExMessage msg;
+
+    BeginBatchDraw(); // Global batch draw for the main loop
+
+    while (currentAppState != AppState::EXITING) {
+        // Clear device at the start of the loop for the current state's drawing
+        // However, individual states might also want to cleardevice with their specific bkcolor
+
+        POINT currentMousePos = { 0,0 };
+        if (GetActiveWindow() == g_hwnd) { // Only get mouse if our window is active
+            GetCursorPos(&currentMousePos);
+            ScreenToClient(g_hwnd, &currentMousePos);
+        }
+
+        // Process all pending messages for input
+        while (peekmessage(&msg, EX_MOUSE | EX_KEY, true)) { // use true to remove message
+            if (currentAppState == AppState::MAIN_MENU) {
+                handleMainMenuInput(msg);
+            }
+            // Add input handling for other states (IN_GAME, SETTINGS) if needed directly here
+            // or call their respective input handlers.
+            // For RECHARGE_CENTER, input is handled within its own showPaymentInterface loop.
+        }
+
+
+        // State-dependent drawing and logic
+        switch (currentAppState) {
+        case AppState::MAIN_MENU:
+            drawMainMenu(currentMousePos);
+            break;
+        case AppState::IN_GAME:
+            // pegSolitaireGame.run(); // Example: run the game loop
+            // After game finishes, it should set currentAppState back to MAIN_MENU or other
+            cleardevice(); // Placeholder for game screen
+            settextstyle(30, 0, _T("Arial"));
+            outtextxy(300, 280, _T("游戏进行中..."));
+            // For this example, let's add a way to return to menu
+            settextstyle(20, 0, _T("Arial"));
+            outtextxy(300, 320, _T("(按 ESC 返回主菜单 - 示例)"));
+            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) { // Check if ESC is pressed
+                currentAppState = AppState::MAIN_MENU;
+                Sleep(150); // Debounce
+            }
+            break;
+        case AppState::RECHARGE_CENTER:
+            // The paymentModule.showPaymentInterface has its own internal loop and drawing.
+            // It will block until it returns.
+            paymentModule.showPaymentInterface(g_hwnd);
+            currentAppState = AppState::MAIN_MENU; // After returning from payment, go back to main menu
+            break;
+        case AppState::SETTINGS:
+            cleardevice(); // Placeholder for settings screen
+            settextstyle(30, 0, _T("Arial"));
+            outtextxy(300, 280, _T("设置界面..."));
+            settextstyle(20, 0, _T("Arial"));
+            outtextxy(300, 320, _T("(按 ESC 返回主菜单 - 示例)"));
+            if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+                currentAppState = AppState::MAIN_MENU;
+                Sleep(150); // Debounce
+            }
+            break;
+        default:
+            // Should not happen
+            break;
+        }
+
+        FlushBatchDraw(); // Draw the entire frame
+        Sleep(16); // Aim for ~60 FPS
+    }
+
+    EndBatchDraw();
     closegraph();
     return 0;
-}
-
-void drawMainMenu(int balance) {
-    setbkcolor(RGB(236, 246, 255));
-    cleardevice();
-    settextstyle(60, 0, _T("微软雅黑"));
-    setbkmode(TRANSPARENT);
-    settextcolor(RGB(50, 50, 120));
-    outtextxy(210, 60, _T("Peg Solitaire"));
-    settextstyle(38, 0, _T("微软雅黑"));
-    // 调整按钮位置，添加存档按钮
-    RECT r1 = { 310,160,490,210 };  // 开始游戏
-    RECT r2 = { 310,230,490,280 };  // 设置
-    RECT r3 = { 310,300,490,350 };  // 充值
-    RECT r4 = { 310,370,490,420 };  // 读取存档(修改名称)
-    RECT r5 = { 310,440,490,490 };  // 退出
-
-    setfillcolor(RGB(180, 200, 250));
-    fillroundrect(r1.left, r1.top, r1.right, r1.bottom, 15, 15);
-    fillroundrect(r2.left, r2.top, r2.right, r2.bottom, 15, 15);
-    fillroundrect(r3.left, r3.top, r3.right, r3.bottom, 15, 15);
-    fillroundrect(r4.left, r4.top, r4.right, r4.bottom, 15, 15);
-    fillroundrect(r5.left, r5.top, r5.right, r5.bottom, 15, 15);
-
-    settextcolor(RGB(40, 40, 90));
-    drawtext(_T("开始游戏"), &r1, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    drawtext(_T("设置"), &r2, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    drawtext(_T("充值"), &r3, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    drawtext(_T("读取存档"), &r4, DT_CENTER | DT_VCENTER | DT_SINGLELINE); // 修改文本
-    drawtext(_T("退出"), &r5, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-    TCHAR balstr[32];
-    _stprintf_s(balstr, _T("当前余额：%d 元"), balance);
-    settextstyle(24, 0, _T("微软雅黑"));
-    settextcolor(RGB(80, 130, 80));
-    outtextxy(10, 600, balstr);
-}
-
-State mainMenu(int balance) {
-    drawMainMenu(balance);
-    while (true) {
-        ExMessage m;
-        while (peekmessage(&m, EM_MOUSE)) {
-            if (m.message == WM_LBUTTONDOWN) {
-                int x = m.x, y = m.y;
-                if (x >= 310 && x <= 490 && y >= 160 && y <= 210) return BOARD_SELECT;  // 开始游戏
-                if (x >= 310 && x <= 490 && y >= 230 && y <= 280) return SETTINGS;      // 设置
-                if (x >= 310 && x <= 490 && y >= 300 && y <= 350) return PAYMENT;       // 充值
-                if (x >= 310 && x <= 490 && y >= 370 && y <= 420) return SAVE_LOAD;     // 存档(新增)
-                if (x >= 310 && x <= 490 && y >= 440 && y <= 490) return EXIT;          // 退出
-            }
-        }
-        Sleep(10);
-    }
 }
