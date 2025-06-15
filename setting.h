@@ -1,16 +1,40 @@
-#pragma once
-#include <string>
+#pragma once // 预处理指令，确保此头文件在一次编译中仅被包含一次，以防止因重复包含导致的编译错误或效率降低。
 
+#include <string> // 引用 C++ 标准库中的 string 类，用于存储文本类型的设置，例如画质设置。
+
+// 枚举类型 ControlMode，定义了玩家可以使用的不同控制方式。
 enum ControlMode {
-    CONTROL_MOUSE,
-    CONTROL_KEYBOARD
+    CONTROL_MOUSE,    // 表示使用鼠标进行游戏操作。
+    CONTROL_KEYBOARD  // 表示使用键盘进行游戏操作。
 };
 
+// Setting 结构体，用于聚合游戏的所有可配置选项。
+// 它可以被保存到文件或在游戏启动时加载，以持久化用户偏好。
 struct Setting {
-    std::string quality = "高";
-    int fps = 60;
-    ControlMode controlMode = CONTROL_MOUSE; // 默认鼠标
-    std::string aiApiKey = "sk-16d270f5ca7546258bf0aeb54534e76f";  // AI API密钥
-    bool enableAI = false;      // 是否启用AI助手
+    // 画面质量设置。
+    // 例如，"高" 可能意味着使用更平滑的图形渲染（如抗锯齿），"低" 则可能牺牲一些视觉效果以提高性能。
+    std::string quality = "高"; // 默认为 "高" 画质。
+
+    // 目标每秒帧数 (Frames Per Second)。
+    // 控制游戏动画和更新的流畅度，较高的 FPS 通常带来更平滑的体验。
+    int fps = 60; // 默认为 60 帧每秒。
+
+    // 当前选择的控制模式。
+    // 决定了游戏是响应鼠标输入还是键盘输入来进行棋子选择和移动。
+    ControlMode controlMode = CONTROL_MOUSE; // 默认为鼠标控制。
+
+    // AI API 密钥。
+    // 用于访问外部 AI 服务（如果游戏集成了此类服务）以获取提示或进行更高级的分析。
+    // 注意：在实际分发的应用中，硬编码 API 密钥是不安全的做法。此处可能为示例或本地开发使用。
+    // 现代做法通常会将此类敏感信息配置化或通过其他安全途径管理。
+    // 在后续版本中，如果AI逻辑完全本地化，此项可能不再需要。
+    std::string aiApiKey = "sk-16d270f5ca7546258bf0aeb54534e76f";  // 存储 AI 服务的 API 密钥。
+
+    // 是否启用 AI 助手功能。
+    // 如果为 true，玩家可能可以请求 AI 提示下一步的最佳走法。
+    bool enableAI = false;      // 默认不启用 AI 助手。
+
+    // 成员函数，用于显示和处理设置菜单。
+    // 当玩家选择进入设置界面时，会调用此函数，允许玩家修改上述各项设置。
     void menu();
 };
